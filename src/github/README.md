@@ -10,8 +10,11 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
 - **Batch Operations**: Support for both single-file and multi-file operations
 - **Advanced Search**: Support for searching code, issues/PRs, and users
 
+**TODO: SUMMARIZE**
 
 ## Tools
+
+**TODO: UPDATE**
 
 1. `create_or_update_file`
    - Create or update a single file in a repository
@@ -108,10 +111,10 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
     - Inputs:
       - `owner` (string): Repository owner
       - `repo` (string): Repository name
-      - `state` (optional string): Filter by state ('open', 'closed', 'all')
+      - `state` (optional string): Filter by state ('open', 'closed', 'all’)
       - `labels` (optional string[]): Filter by labels
-      - `sort` (optional string): Sort by ('created', 'updated', 'comments')
-      - `direction` (optional string): Sort direction ('asc', 'desc')
+      - `sort` (optional string): Sort by ('created’, 'updated’, 'comments’)
+      - `direction` (optional string): Sort direction ('asc’, 'desc’)
       - `since` (optional string): Filter by date (ISO 8601 timestamp)
       - `page` (optional number): Page number
       - `per_page` (optional number): Results per page
@@ -125,7 +128,7 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
       - `issue_number` (number): Issue number to update
       - `title` (optional string): New title
       - `body` (optional string): New description
-      - `state` (optional string): New state ('open' or 'closed')
+      - `state` (optional string): New state ('open’ or 'closed’)
       - `labels` (optional string[]): New labels
       - `assignees` (optional string[]): New assignees
       - `milestone` (optional number): New milestone number
@@ -144,8 +147,8 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
     - Search for code across GitHub repositories
     - Inputs:
       - `q` (string): Search query using GitHub code search syntax
-      - `sort` (optional string): Sort field ('indexed' only)
-      - `order` (optional string): Sort order ('asc' or 'desc')
+      - `sort` (optional string): Sort field ('indexed’ only)
+      - `order` (optional string): Sort order ('asc’ or 'desc’)
       - `per_page` (optional number): Results per page (max 100)
       - `page` (optional number): Page number
     - Returns: Code search results with repository context
@@ -155,7 +158,7 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
     - Inputs:
       - `q` (string): Search query using GitHub issues search syntax
       - `sort` (optional string): Sort field (comments, reactions, created, etc.)
-      - `order` (optional string): Sort order ('asc' or 'desc')
+      - `order` (optional string): Sort order ('asc’ or 'desc’)
       - `per_page` (optional number): Results per page (max 100)
       - `page` (optional number): Page number
     - Returns: Issue and pull request search results
@@ -165,7 +168,7 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
     - Inputs:
       - `q` (string): Search query using GitHub users search syntax
       - `sort` (optional string): Sort field (followers, repositories, joined)
-      - `order` (optional string): Sort order ('asc' or 'desc')
+      - `order` (optional string): Sort order ('asc’ or 'desc’)
       - `per_page` (optional number): Results per page (max 100)
       - `page` (optional number): Page number
     - Returns: User search results
@@ -210,20 +213,17 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
 - `location:London`: Search by location
 - Example: `q: "fullstack developer" location:London followers:>100`
 
-For detailed search syntax, see [GitHub's searching documentation](https://docs.github.com/en/search-github/searching-on-github).
+For detailed search syntax, see [GitHub’s searching documentation](https://docs.github.com/en/search-github/searching-on-github).
 
 ## Setup
 
 ### Personal Access Token
 [Create a GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with appropriate permissions:
    - Go to [Personal access tokens](https://github.com/settings/tokens) (in GitHub Settings > Developer settings)
-   - Select which repositories you'd like this token to have access to (Public, All, or Select)
-   - Create a token with the `repo` scope ("Full control of private repositories")
+   - Select which repositories you’d like this token to have access to (Public, All, or Select)
+   - Create a token with the `repo` scope (“Full control of private repositories”)
      - Alternatively, if working only with public repositories, select only the `public_repo` scope
    - Copy the generated token
-
-### Usage with Claude Desktop
-To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
 
 #### Docker
 ```json
@@ -245,9 +245,9 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
     }
   }
 }
-```
 
 ### NPX
+
 
 ```json
 {
@@ -266,6 +266,7 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
 }
 ```
 
+
 ## Build
 
 Docker build:
@@ -273,6 +274,46 @@ Docker build:
 ```bash
 docker build -t mcp/github -f src/github/Dockerfile .
 ```
+
+## Development
+
+
+```bash
+# Install dependencies
+npm install
+```
+
+This server requires a GitHub Personal Access Token to be set in the environment:
+
+```bash
+export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here
+```
+
+### Testing
+
+The server uses Jest for testing with MSW (Mock Service Worker) for mocking GitHub API responses.
+
+```bash
+# Run tests
+GITHUB_PERSONAL_ACCESS_TOKEN=test-token npm test
+
+# Run tests with coverage
+GITHUB_PERSONAL_ACCESS_TOKEN=test-token npm test -- --coverage
+```
+
+### Test Files
+
+- `__tests__/pr-comments.test.ts`: Tests for PR review comments and updates
+- `__tests__/pr-create.test.ts`: Tests for PR creation
+
+**TODO: UPDATE**
+
+### Adding New Tests
+
+1. Add test file in `__tests__/` directory
+2. Add MSW handlers to mock GitHub API responses
+3. Write test cases using Jest
+4. Run tests to verify
 
 ## License
 

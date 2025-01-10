@@ -1,21 +1,31 @@
 import { z } from "zod";
 
-// Base schemas for common types
-export const GitHubAuthorSchema = z.object({
-  name: z.string(),
-  email: z.string(),
-  date: z.string(),
+/**
+ * Base schemas for common GitHub entities
+ * @see https://docs.github.com/en/rest/reference/users
+ */
+
+// Common base schema for repository operations
+const RepoParamsSchema = z.object({
+  owner: z.string().describe("Repository owner (username or organization)"),
+  repo: z.string().describe("Repository name"),
 });
 
-// Repository related schemas
+// User and author schemas
+export const GitHubAuthorSchema = z.object({
+  name: z.string().describe("The name of the author"),
+  email: z.string().describe("The email of the author"),
+  date: z.string().describe("The date of the action"),
+});
+
 export const GitHubOwnerSchema = z.object({
-  login: z.string(),
-  id: z.number(),
-  node_id: z.string(),
-  avatar_url: z.string(),
-  url: z.string(),
-  html_url: z.string(),
-  type: z.string(),
+  login: z.string().describe("The username of the owner"),
+  id: z.number().describe("The ID of the owner"),
+  node_id: z.string().describe("The Node ID of the owner"),
+  avatar_url: z.string().describe("The avatar URL of the owner"),
+  url: z.string().describe("The API URL for this owner"),
+  html_url: z.string().describe("The HTML URL to view this owner on GitHub"),
+  type: z.string().describe("The type of owner (User or Organization)"),
 });
 
 export const GitHubRepositorySchema = z.object({
@@ -309,11 +319,6 @@ export const GitHubPullRequestSchema = z.object({
   assignees: z.array(GitHubIssueAssigneeSchema),
   head: GitHubPullRequestHeadSchema,
   base: GitHubPullRequestHeadSchema,
-});
-
-const RepoParamsSchema = z.object({
-  owner: z.string().describe("Repository owner (username or organization)"),
-  repo: z.string().describe("Repository name"),
 });
 
 export const CreateOrUpdateFileSchema = RepoParamsSchema.extend({
@@ -717,3 +722,50 @@ export type SearchIssueItem = z.infer<typeof SearchIssueItemSchema>;
 export type SearchIssuesResponse = z.infer<typeof SearchIssuesResponseSchema>;
 export type SearchUserItem = z.infer<typeof SearchUserItemSchema>;
 export type SearchUsersResponse = z.infer<typeof SearchUsersResponseSchema>;
+
+// PR Review schemas
+export const CreatePRReviewCommentSchema = RepoParamsSchema.extend({
+  pull_number: z.number().describe("The number that identifies the pull request"),
+  body: z.string().describe("The text of the comment"),
+  commit_id: z.string().describe("The SHA of the commit to comment on"),
+  path: z.string().describe("The relative path to the file being commented on"),
+  line: z.number().describe("The line index in the diff to comment on"),
+  side: z.enum(["LEFT", "RIGHT"]).optional().describe("Side of the diff to comment on"),
+  start_line: z.number().optional().describe("The start line when commenting on multiple lines"),
+  start_side: z.enum(["LEFT", "RIGHT"]).optional().describe("Side of the diff for start_line")
+});
+
+export const UpdatePullRequestSchema = RepoParamsSchema.extend({
+  pull_number: z.number().describe("The number that identifies the pull request"),
+  title: z.string().optional().describe("The title of the pull request"),
+  body: z.string().optional().describe("The contents of the pull request"),
+  state: z.enum(["open", "closed"]).optional().describe("State of the pull request"),
+  base: z.string().optional().describe("The name of the branch you want the changes pulled into"),
+  maintainer_can_modify: z.boolean().optional().describe("Whether maintainers can modify the pull request")
+});
+
+export const CreatePullRequestReviewSchema = RepoParamsSchema.extend({
+  pull_number: z.number().describe("The number that identifies the pull request"),
+  body: z.string().describe("The review text"),
+  event: z.enum(['APPROVE', 'REQUEST_CHANGES', 'COMMENT']).describe("The review action to perform"),
+  comments: z.array(z.object({
+    path: z.string().describe("The relative path to the file being commented on"),
+    position: z.number().describe("The line index in the diff to comment on"),
+    body: z.string().describe("The text of the comment")
+  })).optional().describe("Optional review comments"),
+  commit_id: z.string().optional().describe("The SHA of the commit to comment on")
+});
+
+export const PullRequestReviewSchema = z.object({
+  id: z.number(),
+  node_id: z.string(),
+  user: GitHubOwnerSchema,
+  body: z.string().nullable(),
+  state: z.enum(['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED', 'PENDING']),
+  html_url: z.string(),
+  pull_request_url: z.string(),
+  commit_id: z.string(),
+  submitted_at: z.string().nullable()
+});
+
+export type PullRequestReview = z.infer<typeof PullRequestReviewSchema>;

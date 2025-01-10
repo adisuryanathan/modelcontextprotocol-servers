@@ -14,7 +14,9 @@ import {
   CreateIssueOptionsSchema,
   CreateIssueSchema,
   CreateOrUpdateFileSchema,
+  CreatePRReviewCommentSchema,
   CreatePullRequestOptionsSchema,
+  CreatePullRequestReviewSchema,
   CreatePullRequestSchema,
   CreateRepositoryOptionsSchema,
   CreateRepositorySchema,
@@ -36,6 +38,7 @@ import {
   IssueCommentSchema,
   ListCommitsSchema,
   ListIssuesOptionsSchema,
+  PullRequestReviewSchema,
   PushFilesSchema,
   SearchCodeResponseSchema,
   SearchCodeSchema,
@@ -45,6 +48,7 @@ import {
   SearchUsersResponseSchema,
   SearchUsersSchema,
   UpdateIssueOptionsSchema,
+  UpdatePullRequestSchema,
   type FileOperation,
   type GitHubCommit,
   type GitHubContent,
@@ -239,10 +243,162 @@ async function createIssue(
 async function createPullRequest(
   owner: string,
   repo: string,
-  options: z.infer<typeof CreatePullRequestOptionsSchema>
+  title: string,
+  head: string,
+  base: string,
+  body?: string,
+  draft?: boolean,
+  maintainer_can_modify?: boolean
 ): Promise<GitHubPullRequest> {
   const response = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/pulls`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "github-mcp-server",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title,
+        head,
+        base,
+        body,
+        draft,
+        maintainer_can_modify
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`GitHub API error: ${response.statusText}`);
+  }
+
+  return GitHubPullRequestSchema.parse(await response.json());
+}
+
+async function updatePullRequest(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  options: Omit<z.infer<typeof UpdatePullRequestSchema>, 'owner' | 'repo' | 'pull_number'>
+): Promise<GitHubPullRequest> {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "github-mcp-server",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(options),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`GitHub API error: ${response.statusText}`);
+  }
+
+  return GitHubPullRequestSchema.parse(await response.json());
+}
+
+async function createPRReviewComment(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  body: string,
+  commitId: string,
+  path: string,
+  line: number,
+  side?: "LEFT" | "RIGHT",
+  startLine?: number,
+  startSide?: "LEFT" | "RIGHT"
+): Promise<z.infer<typeof CreatePRReviewCommentSchema>> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}/comments`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "github-mcp-server",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      body,
+      commit_id: commitId,
+      path,
+      line,
+      side: side || "RIGHT",
+      start_line: startLine,
+      start_side: startSide
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub API error: ${response.statusText}`);
+  }
+
+  return CreatePRReviewCommentSchema.parse(await response.json());
+}
+
+async function getPullRequestComments(
+  owner: string,
+  repo: string,
+  pull_number: number
+): Promise<Array<z.infer<typeof CreatePRReviewCommentSchema | typeof IssueCommentSchema>>> {
+  // Get both PR review comments and issue comments
+  const [reviewCommentsResponse, issueCommentsResponse] = await Promise.all([
+    fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${pull_number}/comments`,
+      {
+        headers: {
+          Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "github-mcp-server",
+        },
+      }
+    ),
+    fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${pull_number}/comments`,
+      {
+        headers: {
+          Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "github-mcp-server",
+        },
+      }
+    ),
+  ]);
+
+  if (!reviewCommentsResponse.ok) {
+    throw new Error(`GitHub API error: ${reviewCommentsResponse.statusText}`);
+  }
+  if (!issueCommentsResponse.ok) {
+    throw new Error(`GitHub API error: ${issueCommentsResponse.statusText}`);
+  }
+
+  const reviewComments = await reviewCommentsResponse.json();
+  const issueComments = await issueCommentsResponse.json();
+
+  // Combine both types of comments
+  return [
+    ...z.array(CreatePRReviewCommentSchema).parse(reviewComments),
+    ...z.array(IssueCommentSchema).parse(issueComments),
+  ];
+}
+
+async function createPullRequestReview(
+  owner: string,
+  repo: string,
+  pull_number: number,
+  options: Omit<z.infer<typeof CreatePullRequestReviewSchema>, 'owner' | 'repo' | 'pull_number'>
+): Promise<z.infer<typeof PullRequestReviewSchema>> {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/pulls/${pull_number}/reviews`,
     {
       method: "POST",
       headers: {
@@ -259,7 +415,7 @@ async function createPullRequest(
     throw new Error(`GitHub API error: ${response.statusText}`);
   }
 
-  return GitHubPullRequestSchema.parse(await response.json());
+  return PullRequestReviewSchema.parse(await response.json());
 }
 
 async function createOrUpdateFile(
@@ -281,9 +437,7 @@ async function createOrUpdateFile(
         currentSha = existingFile.sha;
       }
     } catch (error) {
-      console.error(
-        "Note: File does not exist in branch, will create new file"
-      );
+      // Skip SHA when file doesn't exist
     }
   }
 
@@ -942,7 +1096,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "create_pull_request": {
         const args = CreatePullRequestSchema.parse(request.params.arguments);
         const { owner, repo, ...options } = args;
-        const pullRequest = await createPullRequest(owner, repo, options);
+        const pullRequest = await createPullRequest(
+          owner,
+          repo,
+          options.title,
+          options.head,
+          options.base,
+          options.body,
+          options.draft,
+          options.maintainer_can_modify
+        );
         return {
           content: [
             { type: "text", text: JSON.stringify(pullRequest, null, 2) },
@@ -984,6 +1147,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "update_issue": {
         const args = UpdateIssueOptionsSchema.parse(request.params.arguments);
         const { owner, repo, issue_number, ...options } = args;
+        const args2 = UpdateIssueOptionsSchema.parse(request.params.arguments);
+        const { owner: owner2, repo: repo2, issue_number: number2, ...options2 } = args2;
         const issue = await updateIssue(owner, repo, issue_number, options);
         return { toolResult: issue };
       }
@@ -1028,6 +1193,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw error;
   }
 });
+
+// Export functions for testing
+export {
+  createPullRequestReview,
+  createPRReviewComment,
+  getPullRequestComments,
+  createPullRequest,
+  updatePullRequest,
+  searchIssues,
+  searchUsers,
+  forkRepository
+};
+
+// Export server control functions
+export async function closeServer() {
+  await server.close();
+}
 
 async function runServer() {
   const transport = new StdioServerTransport();
