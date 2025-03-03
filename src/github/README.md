@@ -277,6 +277,23 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
      - `pull_number` (number): Pull request number
    - Returns: Array of pull request reviews with details like the review state (APPROVED, CHANGES_REQUESTED, etc.), reviewer, and review body
 
+26. `get_pr_files`
+   - Get the list of files changed in a pull request with their relative paths
+   - Inputs:
+     - `owner` (string): Repository owner
+     - `repo` (string): Repository name
+     - `pull_number` (number): Pull request number
+   - Returns: Array of changed files with details including filename, status, and patch information
+
+27. `get_pr_diff`
+   - Get the diff content of a pull request, optionally filtered by a specific file
+   - Inputs:
+     - `owner` (string): Repository owner
+     - `repo` (string): Repository name
+     - `pull_number` (number): Pull request number
+     - `file` (optional string): File path to filter the diff by
+   - Returns: Pull request diff in unified diff format
+
 ## Search Query Syntax
 
 ### Code Search
